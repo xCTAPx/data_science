@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plot
 import numpy as np
-from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.model_selection import RandomizedSearchCV, StratifiedShuffleSplit
 from pandas.plotting import scatter_matrix
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import OneHotEncoder
@@ -18,6 +18,8 @@ from sklearn.ensemble import RandomForestRegressor
 import joblib
 from sklearn.model_selection import GridSearchCV
 from scipy import stats
+from sklearn.svm import SVR
+from scipy.stats import expon, reciprocal
 
 # <---load data --->
 HOUSING_PATH = os.path.join('datasets', 'housing')
@@ -143,7 +145,9 @@ housing_prepared = full_pipeline.fit_transform(housing)
 
 # <--- try LinearRegression model --->
 lin_reg = LinearRegression()
+print('Linear Regression train...')
 lin_reg.fit(housing_prepared, housing_labels)
+print('Linear Regression has been trained!')
 
 some_data = housing.iloc[:5]
 some_labels = housing_labels[:5]
@@ -159,7 +163,9 @@ joblib.dump(lin_reg, './models/hosung_linear_regression.pkl')
 
 # <--- try DecisionTreeRegressor model --->
 tree_reg = DecisionTreeRegressor()
+print('Decision Tree Regressor train...')
 tree_reg.fit(housing_prepared, housing_labels)
+print('Decision Tree Regressor has been trained!')
 housing_predictions = tree_reg.predict(housing_prepared)
 tree_mse = mean_squared_error(housing_labels, housing_predictions)
 tree_rmse = np.sqrt(tree_mse)
@@ -230,9 +236,11 @@ grid_search = GridSearchCV(forest_reg, param_grid, cv=5,
                            scoring='neg_mean_squared_error',
                            return_train_score=True)
 
+print('Random Forest Regressor train via grid search...')
 grid_search.fit(housing_prepared, housing_labels)
+print('Random Forest Regressor has trained!')
 
-print(grid_search.best_params_)
+# print(grid_search.best_params_)
 
 # <--- importance of every attribute (feature) --->
 feature_importances = grid_search.best_estimator_.feature_importances_
@@ -269,4 +277,24 @@ res = np.sqrt(stats.t.interval(
     scale=stats.sem(squared_errors)
 ))
 
-print(res)
+# print(res)
+
+# <--- try other models (for example, SVR) --->
+svr = SVR()
+param_distribs = {
+        'kernel': ['linear', 'rbf'],
+        'C': reciprocal(20, 200000),
+        'gamma': expon(scale=1.0),
+    }
+
+rnd_search_svr = RandomizedSearchCV(svr, param_distribs,
+                                    n_iter=50, cv=5, scoring='neg_mean_squared_error',
+                                    verbose=2, random_state=42)
+
+print('Support Vector Regressor train via RandomizedSearchCV...')
+rnd_search_svr.fit(housing_prepared, housing_labels)
+print('Support Vector Regressor has been trained!')
+print('Best params:', rnd_search_svr.best_params_)
+print('Best rmse:', np.sqrt(-rnd_search_svr.best_score_))
+
+joblib.dump(lin_reg, './models/hosung_svr.pkl')

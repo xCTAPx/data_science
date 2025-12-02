@@ -21,3 +21,15 @@ class CombineAttributesAdder (BaseEstimator, TransformerMixin):
             return np.c_[X, rooms_per_household, population_per_household, bedrooms_per_room]
         else:
             return np.c_[X, rooms_per_household, population_per_household]
+        
+class MostImportantFeatureSelector (BaseEstimator, TransformerMixin):
+    def __init__(self, feature_importances, num_features):
+        self.feature_importances = feature_importances
+        self.num_features = num_features
+    
+    def fit(self, X, y=None):
+        self.feature_indices_ = np.argsort(self.feature_importances)[-self.num_features:]
+        return self
+    
+    def transform(self, X, y=None):
+        return X[:, self.feature_indices_]
